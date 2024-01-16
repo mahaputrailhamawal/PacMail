@@ -1,0 +1,16 @@
+.sendmail-container {
+    /* display: flex; */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    /* height: 100vh; */
+    /* background: url('../../assets/bg-fix.jpg') center/cover no-repeat; */
+    padding-left: 200px;
+    padding-right: 200px;
+
+  }
+  
+.form-label {
+    color: black;
+    font-size: large;
+}
