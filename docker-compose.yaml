@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  my-frontend:
+    image: node:latest
+    container_name: my-frontend
+    restart: always
+    depends_on:
+      - my-backend
+      - my-database
+    volumes:
+      - ./frontend:/frontend
+    working_dir: /frontend
+    command: ["npm", "start"]
+    network_mode: host
+
+  my-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: my-backend
+    restart: always
+    depends_on:
+      - my-database
+    volumes:
+      - ./backend:/backend
+    network_mode: host
+
+  my-database:
+    image: postgres:13
+    container_name: my-database
+    hostname: database
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    network_mode: host
+
+volumes:
+  postgres_data:
