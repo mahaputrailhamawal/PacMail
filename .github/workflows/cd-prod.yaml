@@ -56,7 +56,7 @@ jobs:
             echo "POSTGRES_PORT=$POSTGRES_PORT" >> .env
             echo "APP_IMAGE=${DOCKERHUB_USERNAME}/${APP_NAME}" >> .env
             echo "APP_TAG=$APP_TAG" >> .env
-            REACT_APP_API_URL: ${{ vars.REACT_APP_API_URL_PROD }}
+            echo "REACT_APP_API_URL= ${{ vars.REACT_APP_API_URL_PROD }}" >> .env
 
             # Run app
             sudo docker compose up my-database my-backend-prod my-frontend-prod --build --detach
