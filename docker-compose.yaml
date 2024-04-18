@@ -16,7 +16,7 @@ services:
 
   my-backend-prod:
     image: ${APP_IMAGE}:${APP_TAG}
-    container_name: my-backend
+    container_name: my-backend-prod
     restart: always
     depends_on:
       - my-database
