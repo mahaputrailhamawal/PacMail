@@ -35,4 +35,4 @@ jobs:
 
       - name: Testing
         run: |
-          python3 testing/test-signup.py
+          python3 testing/test_signup.py
