@@ -14,6 +14,16 @@ services:
     command: ["npm", "start"]
     network_mode: host
 
+  my-backend-prod:
+    image: ${APP_IMAGE}:${APP_TAG}
+    container_name: my-backend
+    restart: always
+    depends_on:
+      - my-database
+    volumes:
+      - ./backend:/backend
+    network_mode: host
+
   my-backend:
     build:
       context: ./backend

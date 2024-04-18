@@ -1,0 +1,65 @@
+name: Deploy Production 🚀
+
+on:
+  release:
+    types:
+      - published
+      - edited
+
+jobs:
+  deploy-production:
+    name: Deploy to production server 🚀
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Execute deployment command
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          APP_PATH_PROD: ${{ vars.APP_PATH_PROD }}
+          GIT_URL: ${{ vars.GIT_URL }}
+          POSTGRES_USER: ${{ secrets.DB_USER_PROD }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD_PROD }}
+          POSTGRES_DB: ${{ vars.DB_DBNAME_PROD }}
+          POSTGRES_HOST: ${{ secrets.DB_HOST_PROD }}
+          POSTGRES_PORT: ${{ secrets.DB_PORT_PROD }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          APP_NAME: ${{ vars.APP_NAME }}
+          APP_TAG: ${{ github.event.release.tag_name }}
+
+        with:
+          host: ${{ secrets.SSH_HOST_PROD }}
+          username: ${{ secrets.SSH_USER_NAME_PROD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+          envs: APP_PATH_PROD, GIT_URL, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT, DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, APP_NAME, APP_TAG
+          script: |
+
+            sudo docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
+
+            if [[ -d "/home/ubuntu/${APP_PATH_PROD}" ]]; then 
+              cd /home/ubuntu/$APP_PATH_PROD
+              sudo docker compose down
+              git stash
+              git pull --rebase
+            else
+              ssh-keyscan github.com > ~/.ssh/known_hosts
+              git clone $GIT_URL /home/ubuntu/$APP_PATH_PROD
+              cd /home/ubuntu/$APP_PATH_PROD
+            fi
+
+            # If there are any envars update
+            echo "POSTGRES_USER=$POSTGRES_USER" > .env
+            echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env
+            echo "POSTGRES_DB=$POSTGRES_DB" >> .env
+            echo "POSTGRES_HOST=$POSTGRES_HOST" >> .env
+            echo "POSTGRES_PORT=$POSTGRES_PORT" >> .env
+            echo "APP_IMAGE=${DOCKERHUB_USERNAME}/${APP_NAME}" >> .env
+            echo "APP_TAG=$APP_TAG" >> .env
+
+            # Run app
+            sudo docker compose up --build --detach
+
+      - name: Hit Endpoint
+        run: |
+          sleep 20
+          curl ${{ vars.PROD_URL }}
