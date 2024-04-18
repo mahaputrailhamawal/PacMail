@@ -34,6 +34,10 @@ class Email(db.Model):
     recepient_email = db.Column(db.String(255))
     recepient_email_subject = db.Column(db.String(255))
     recepient_email_body = db.Column(db.String(255))
+    
+@app.route('/health-check', methods=['GET'])
+def health_check():
+    return 'Ok'
 
 @app.route('/signup', methods=['POST'])
 def signup():
@@ -116,4 +120,4 @@ def post_data():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all() 
-    app.run(debug=True)
+    app.run(host='0.0.0.0', debug=True)
