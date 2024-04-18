@@ -22,7 +22,7 @@ jobs:
 
       - name: Build and Run Container
         run: |
-          sudo docker compose up --build --detach
+          sudo docker compose up my-database my-backend my-frontend --build --detach
       
       - name: Hit Endpoint
         run: |
