@@ -1,0 +1,38 @@
+name: Dev Testing
+
+on:
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build-testing:
+    name: Build and Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      
+      - name: Create .env file
+        run: |
+          echo "POSTGRES_USER=${{ secrets.DB_USER_DEV }}" > .env
+          echo "POSTGRES_PASSWORD=${{ secrets.DB_PASSWORD_DEV }}" >> .env
+          echo "POSTGRES_DB=${{ vars.DB_DBNAME_DEV }}" >> .env
+          echo "POSTGRES_HOST=${{ secrets.DB_HOST_DEV }}" >> .env
+          echo "POSTGRES_PORT=${{ secrets.DB_PORT_DEV }}" >> .env
+
+      - name: Build and Run Container
+        run: |
+          sudo docker compose up --build --detach
+      
+      - name: Hit Endpoint
+        run: |
+          sleep 20
+          curl ${{ vars.DEV_URL }}
+      
+      - name: Install Testing Requirements
+        run: |
+          pip install -r testing/requirements.txt
+
+      - name: Testing
+        run: |
+          python3 testing/test-signup.py
