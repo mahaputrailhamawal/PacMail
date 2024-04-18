@@ -57,7 +57,7 @@ jobs:
             echo "APP_TAG=$APP_TAG" >> .env
 
             # Run app
-            sudo docker compose up my-database my-backend-prod my-frontend --build --detach
+            sudo docker compose up my-database my-backend-prod my-frontend-prod --build --detach
 
       - name: Hit Endpoint
         run: |

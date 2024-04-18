@@ -1,12 +1,12 @@
 version: "3.8"
 
 services:
-  my-frontend:
+  my-frontend-prod:
     image: node:latest
-    container_name: my-frontend
+    container_name: my-frontend-prod
     restart: always
     depends_on:
-      - my-backend
+      - my-backend-prod
       - my-database
     volumes:
       - ./frontend:/frontend
@@ -22,6 +22,19 @@ services:
       - my-database
     volumes:
       - ./backend:/backend
+    network_mode: host
+
+  my-frontend:
+    image: node:latest
+    container_name: my-frontend
+    restart: always
+    depends_on:
+      - my-backend
+      - my-database
+    volumes:
+      - ./frontend:/frontend
+    working_dir: /frontend
+    command: ["npm", "start"]
     network_mode: host
 
   my-backend:
