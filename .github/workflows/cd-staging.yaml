@@ -46,8 +46,11 @@ jobs:
 
               # Run app
               sudo docker compose up my-database my-backend my-frontend --build --detach
-
+      
       - name: Hit Endpoint
         run: |
-          sleep 20
           curl ${{ vars.STAGING_URL }}
+
+      - name: Clear Docker Image Cache
+        run: |
+          sudo docker image prune
