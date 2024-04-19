@@ -20,8 +20,6 @@ jobs:
           POSTGRES_USER: ${{ secrets.DB_USER_PROD }}
           POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD_PROD }}
           POSTGRES_DB: ${{ vars.DB_DBNAME_PROD }}
-          POSTGRES_HOST: ${{ secrets.DB_HOST_PROD }}
-          POSTGRES_PORT: ${{ secrets.DB_PORT_PROD }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           APP_NAME: ${{ vars.APP_NAME }}
@@ -32,7 +30,7 @@ jobs:
           host: ${{ secrets.SSH_HOST_PROD }}
           username: ${{ secrets.SSH_USER_NAME_PROD }}
           key: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
-          envs: APP_PATH_PROD, GIT_URL, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT, DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, APP_NAME, APP_TAG, REACT_APP_API_URL
+          envs: APP_PATH_PROD, GIT_URL, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, APP_NAME, APP_TAG, REACT_APP_API_URL
           script: |
 
             sudo docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
@@ -51,9 +49,7 @@ jobs:
             # If there are any envars update
             echo "POSTGRES_USER=$POSTGRES_USER" > .env
             echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env
-            echo "POSTGRES_DB=$POSTGRES_DB" >> .env
-            echo "POSTGRES_HOST=$POSTGRES_HOST" >> .env
-            echo "POSTGRES_PORT=$POSTGRES_PORT" >> .env
+            echo "POSTGRES_DB=$POSTGRES_DB" >> .env && cp .env backend/.env
             echo "APP_IMAGE=${DOCKERHUB_USERNAME}/${APP_NAME}" >> .env
             echo "APP_TAG=$APP_TAG" >> .env
             echo "REACT_APP_API_URL= ${{ vars.REACT_APP_API_URL_PROD }}" > frontend/.env
