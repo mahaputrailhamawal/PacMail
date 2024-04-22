@@ -49,6 +49,7 @@ jobs:
       
       - name: Hit Endpoint
         run: |
+          sleep 15
           curl ${{ vars.STAGING_URL }}
 
       - name: Clear Docker Image Cache
