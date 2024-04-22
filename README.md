@@ -2,14 +2,24 @@
 
 Dokumen ini berisi garis besar proses deployment dari PacMail yang menggunakan Flask, React.js dan Docker. Proyek ini merupakan bagian dari proyek akhir dari kursus Fundamental DevOps dari pacmann.
 
-## <div> Proses </div>
+## <div> Tools </div>
+
+1. Docker.
+2. GitHub Action.
+3. Amazon EC2 Instance.
+4. DNS Server.
+
+## <div> Proses Pengerjaan</div>
+
+Ada lima tahap yang perlu dikerjakan untuk deploy aplikasi ke server dan membuatnya dapat diakses.
+
 1. Server Preparation.
 2. Compose the App.
 3. Create CI/CD Pipeline.
 4. Configure web server using Nginx.
 5. Create domain name.
 
-## <div> Workflow </div>
+## <div> Workflows </div>
 
 ### 1. Server Preparation.
 
@@ -51,11 +61,13 @@ sudo apt install nginx
 
 #### Firewall Configuration
 
-Setelah install NGINX, lakukan konfigurasi firewall dengan cara mengatur port mana saja yang akan digunakan. 
+Setelah install NGINX, lakukan konfigurasi firewall dengan cara mengatur port mana saja yang akan digunakan. Kita bisa melakukan konfigurasi firewall pada Security Groups yang digunakan oleh server kita.
+
+![Gambar Firewall](docs/server-firewall.png)
 
 ## 2. Compose the App
 
-Selanjutnya kita perlu membuat 
+Selanjutnya kita perlu membuat konfigurasi agar aplikasi kita dapat dijalankan di kontainer yang kita gunakan.
 
 ### 1. Create Custom Docker Image
 
@@ -153,6 +165,7 @@ Setelah kita sudah mempersiapkan server yang akan digunakan untuk mendeploy aplo
 
 Yang pertama, kita perlu melindungi `main` branch dari repositori kita. Hal tersebut dilakukan agar proses merge dapat dijalankan jika sebuah pull request sudah disetujui dari collaborator. Kemudian kita bisa membuat CI/CD Pipeline di dalam `.github/workflows` direktori. Di dalam direktori tersebut terdapat file .yaml yang akan digunakan menjalankan proses CI/CD.
 
+![branch protection](docs/branch-protection.png)
 ### Continuous Integration
 
 ```yaml
@@ -425,6 +438,8 @@ Proses terakhir dari proyek ini yaitu membuat sebuah nama domain untuk memudahka
 
 ### 1. Create DNS Record
 
+![dns manager](docs/dns-manager.png)
+
 ### 2. Instal SSL Certificate
 
 Setelah kita membuat nama domain, selanjutnya kita perlu generate sertifikat SSL dan menginstal sertifikat tersebut ke dalam server yang digunakan. Sebelum melakukan generate SSL, kita perlu install __Certbot__ terlebih dahulu.
@@ -440,6 +455,8 @@ sudo certbot --nginx -d "pacmail.putra988.my.id"
 ```
 
 Setelah kita sudah mengenerate dan instal sertifikat SSL, sekarang koneksi sudah aman dengan menggunakan HTTPS.
+
+![login pacmail](docs/login-pacmail.png)
 
 ## Kesimpulan
 
