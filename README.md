@@ -151,16 +151,296 @@ Setelah kita sudah mempersiapkan server yang akan digunakan untuk mendeploy aplo
 
 ### 1. Preparation
 
-Yang pertama, kita perlu melindungi `main` branch dari repositori kita. Hal tersebut dilakukan agar proses merge dapat dijalankan jika sebuah pull request sudah disetujui dari collaborator.
+Yang pertama, kita perlu melindungi `main` branch dari repositori kita. Hal tersebut dilakukan agar proses merge dapat dijalankan jika sebuah pull request sudah disetujui dari collaborator. Kemudian kita bisa membuat CI/CD Pipeline di dalam `.github/workflows` direktori. Di dalam direktori tersebut terdapat file .yaml yang akan digunakan menjalankan proses CI/CD.
 
 ### Continuous Integration
 
+```yaml
+name: Dev Testing 🔎
+
+on:
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build-testing:
+    name: Build and Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      
+      - name: Create .env file
+        run: |
+          echo "POSTGRES_USER=${{ secrets.DB_USER_DEV }}" > .env
+          echo "POSTGRES_PASSWORD=${{ secrets.DB_PASSWORD_DEV }}" >> .env
+          echo "POSTGRES_DB=${{ vars.DB_DBNAME_DEV }}" >> .env
+          echo "POSTGRES_HOST=${{ secrets.DB_HOST_DEV }}" >> .env
+          echo "POSTGRES_PORT=${{ secrets.DB_PORT_DEV }}" >> .env
+          echo "REACT_APP_API_URL=${{ vars.REACT_APP_API_URL_DEV }}" >> .env
+
+      - name: Build and Run Container
+        run: |
+          sudo docker compose up my-database my-backend my-frontend --build --detach
+      
+      - name: Hit Endpoint
+        run: |
+          sleep 20
+          curl ${{ vars.DEV_URL }}
+      
+      - name: Install Testing Requirements
+        run: |
+          pip install -r testing/requirements.txt
+
+      - name: Testing
+        run: |
+          python3 testing/test_signup.py
+```
 ### Continuous Delivery and Deployment
+
+#### Staging
+
+```yaml
+name: Deploy Staging 🚀
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy-staging:
+    name: Deploy to staging server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Execute deployment command
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          APP_PATH_STAGING: ${{ vars.APP_PATH_STAGING }}
+          GIT_URL: ${{ vars.GIT_URL }}
+          POSTGRES_USER: ${{ secrets.DB_USER_STAGING }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD_STAGING }}
+          POSTGRES_DB: ${{ vars.DB_DBNAME_STAGING }}
+          REACT_APP_API_URL: ${{ vars.REACT_APP_API_URL_STAGING }} 
+      
+        with:
+            host: ${{ secrets.SSH_HOST_STAGING }}
+            username: ${{ secrets.SSH_USER_NAME_STAGING }}
+            key: ${{ secrets.SSH_PRIVATE_KEY_STAGING }}
+            envs: APP_PATH_STAGING, GIT_URL, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, REACT_APP_API_URL
+            script: |
+
+              if [[ -d "/home/ubuntu/${APP_PATH_STAGING}" ]]; then 
+                cd /home/ubuntu/$APP_PATH_STAGING
+                sudo docker compose down
+                git stash
+                git pull --rebase
+              else
+                ssh-keyscan github.com > ~/.ssh/known_hosts
+                git clone $GIT_URL /home/ubuntu/$APP_PATH_STAGING
+                cd /home/ubuntu/$APP_PATH_STAGING
+              fi
+
+              # If there are any envars update
+              echo "POSTGRES_USER=$POSTGRES_USER" > .env 
+              echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env 
+              echo "POSTGRES_DB=$POSTGRES_DB" >> .env && cp .env backend/.env
+              echo "REACT_APP_API_URL=${{ vars.REACT_APP_API_URL_STAGING }}" > frontend/.env
+
+              # Run app
+              sudo docker compose up my-database my-backend my-frontend --build --detach
+      
+      - name: Hit Endpoint
+        run: |
+          sleep 15
+          curl ${{ vars.STAGING_URL }}
+
+      - name: Clear Docker Image Cache
+        run: |
+          sudo docker image prune
+```
+
+#### Push to registry
+
+```yaml
+name: Push Container Registry 🛒
+
+on:  
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build-push:
+    name: Push Image To Container Registry 🛒
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Push current & latest pacmail-backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: | 
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ vars.APP_NAME }}:${{ github.ref_name }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ vars.APP_NAME }}:latest
+```
+
+#### Production
+
+```yaml
+name: Deploy Production 🚀
+
+on:
+  release:
+    types:
+      - published
+      - edited
+
+jobs:
+  deploy-production:
+    name: Deploy to production server 🚀
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Execute deployment command
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          APP_PATH_PROD: ${{ vars.APP_PATH_PROD }}
+          GIT_URL: ${{ vars.GIT_URL }}
+          POSTGRES_USER: ${{ secrets.DB_USER_PROD }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD_PROD }}
+          POSTGRES_DB: ${{ vars.DB_DBNAME_PROD }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          APP_NAME: ${{ vars.APP_NAME }}
+          APP_TAG: ${{ github.event.release.tag_name }}
+          REACT_APP_API_URL: ${{ vars.REACT_APP_API_URL_PROD }}
+
+        with:
+          host: ${{ secrets.SSH_HOST_PROD }}
+          username: ${{ secrets.SSH_USER_NAME_PROD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+          envs: APP_PATH_PROD, GIT_URL, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, APP_NAME, APP_TAG, REACT_APP_API_URL
+          script: |
+
+            sudo docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
+
+            if [[ -d "/home/ubuntu/${APP_PATH_PROD}" ]]; then 
+              cd /home/ubuntu/$APP_PATH_PROD
+              sudo docker compose down
+              git stash
+              git pull --rebase
+            else
+              ssh-keyscan github.com > ~/.ssh/known_hosts
+              git clone $GIT_URL /home/ubuntu/$APP_PATH_PROD
+              cd /home/ubuntu/$APP_PATH_PROD
+            fi
+
+            # If there are any envars update
+            echo "POSTGRES_USER=$POSTGRES_USER" > .env
+            echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env
+            echo "POSTGRES_DB=$POSTGRES_DB" >> .env && cp .env backend/.env
+            echo "APP_IMAGE=${DOCKERHUB_USERNAME}/${APP_NAME}" >> .env
+            echo "APP_TAG=$APP_TAG" >> .env
+            echo "REACT_APP_API_URL= ${{ vars.REACT_APP_API_URL_PROD }}" > frontend/.env
+
+            # Run app
+            sudo docker compose up my-database my-backend-prod my-frontend-prod --build --detach
+```
 
 ## 4. Configuring Web Server using NGINX
 
+Pada proses ini kita perlu melakukan konfigurasi NGINX yang bertindak sebagai Reverse Proxy dimana akan mengarahkan request dari port 80 (HTTP) ke aplikasi yang berjalan di server
+
+### Removing the default configuration
+
+Pertama kita perlu menghapus konfigurasi default NGINX.
+
+```bash
+sudo rm /etc/nginx/sites-available/default
+sudo rm /etc/nginx/sites-enabled/default
+```
+
+### Creating new configuration
+
+Setelah kita menghapus konfigurasi default dari NGINX, kemudian kita akan membuat konfigurasi yang akan kita gunakan.
+
+```bash
+cd /etc/nginx/sites-available
+sudo nano pacmail.putra988.my.id
+```
+
+Di dalam file konfigurasi, kita akan menentukan port mana saja yang didengarkan NGINX dan port tujuan ke mana permintaan akan dialihkan.
+
+```nginx
+server {
+    listen 80;
+    server_name pacmail.putra988.my.id;
+
+    location / {
+        proxy_pass http://:public-ip:3000;
+    }
+}
+
+server {
+    listen 80;
+    server_name pacmail.api.putra988.my.id;
+
+    location / {
+        proxy_pass http://public-ip:5000;
+    }
+}
+```
+
+Setelah berhasil membuat file konfigurasi, kemudian kita aktifkan file konfigurasi tersebut dengan membuat symlink ke direktori `sites-enabled`.
+
+```bash
+sudo ln -s /etc/nginx/sites-available/pacmail.putra988.my.id /etc/nginx/sites-enabled
+```
+
+Selanjutnya lakukan pengecekan syntax dan testing untuk memastikan tidak ada konfigurasi yang salah.
+
+```bash
+sudo nginx -t
+```
+Jika tidak ada error, sekarang aplikasi dapat diakses secara langsung tanpa perlu menentukan port.
+
 ## 5. Create Domain Name and Install SSL Certificate
+
+Proses terakhir dari proyek ini yaitu membuat sebuah nama domain untuk memudahkan user dalam mengakses aplikasi tanpa perlu mengingat dan menulis ip publik yang digunakan oleh aplikasi. Pada proses ini juga akan ditunjukkan bagaimana cara install sebuah Sertifikat SSL untuk memastikan koneksi yang digunakan aman via HTTPS. Pada proyek ini, saya menggunakan [jagoanhosting.com](jagoanhosting.com) untuk membuat nama domain dan __Certbot__ untuk generate sertifikat SSL.
 
 ### 1. Create DNS Record
 
 ### 2. Instal SSL Certificate
+
+Setelah kita membuat nama domain, selanjutnya kita perlu generate sertifikat SSL dan menginstal sertifikat tersebut ke dalam server yang digunakan. Sebelum melakukan generate SSL, kita perlu install __Certbot__ terlebih dahulu.
+
+```bash
+sudo apt install certbot python3-certbot-nginx
+```
+
+Kemudian dengan menggunakan file konfigurasi NGINX yang sudah dibuat, kita akan mengenerate sertifikat SSL dengan menggunakan __Certbot__.
+
+```bash
+sudo certbot --nginx -d "pacmail.putra988.my.id"
+```
+
+Setelah kita sudah mengenerate dan instal sertifikat SSL, sekarang koneksi sudah aman dengan menggunakan HTTPS.
+
+## Kesimpulan
+
+Pada proyek ini proses deployment telah berhasil dikerjakan. Secara keseluruhan baik proses setup server sampai proses deployment aplikasi ke sever berhasil dikerjakan dan aplikasi dapat diakses via domain yang digunakan dengan koneksi HTTPS. Untuk rencana selanjutnya dari proyek ini yaitu menambahkan fitur reply email dan  melakukan stress testing.
