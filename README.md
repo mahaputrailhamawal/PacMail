@@ -166,214 +166,24 @@ Setelah kita sudah mempersiapkan server yang akan digunakan untuk mendeploy aplo
 Yang pertama, kita perlu melindungi `main` branch dari repositori kita. Hal tersebut dilakukan agar proses merge dapat dijalankan jika sebuah pull request sudah disetujui dari collaborator. Kemudian kita bisa membuat CI/CD Pipeline di dalam `.github/workflows` direktori. Di dalam direktori tersebut terdapat file .yaml yang akan digunakan menjalankan proses CI/CD.
 
 ![branch protection](docs/branch-protection.png)
+
 ### Continuous Integration
 
-```yaml
-name: Dev Testing 🔎
+![ci process](docs/ci-process.png)
 
-on:
-  pull_request:
-    branches: ["main"]
-
-jobs:
-  build-testing:
-    name: Build and Testing
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-      
-      - name: Create .env file
-        run: |
-          echo "POSTGRES_USER=${{ secrets.DB_USER_DEV }}" > .env
-          echo "POSTGRES_PASSWORD=${{ secrets.DB_PASSWORD_DEV }}" >> .env
-          echo "POSTGRES_DB=${{ vars.DB_DBNAME_DEV }}" >> .env
-          echo "POSTGRES_HOST=${{ secrets.DB_HOST_DEV }}" >> .env
-          echo "POSTGRES_PORT=${{ secrets.DB_PORT_DEV }}" >> .env
-          echo "REACT_APP_API_URL=${{ vars.REACT_APP_API_URL_DEV }}" >> .env
-
-      - name: Build and Run Container
-        run: |
-          sudo docker compose up my-database my-backend my-frontend --build --detach
-      
-      - name: Hit Endpoint
-        run: |
-          sleep 20
-          curl ${{ vars.DEV_URL }}
-      
-      - name: Install Testing Requirements
-        run: |
-          pip install -r testing/requirements.txt
-
-      - name: Testing
-        run: |
-          python3 testing/test_signup.py
-```
 ### Continuous Delivery and Deployment
 
 #### Staging
 
-```yaml
-name: Deploy Staging 🚀
-
-on:
-  push:
-    branches: ["main"]
-
-jobs:
-  deploy-staging:
-    name: Deploy to staging server
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Execute deployment command
-        uses: appleboy/ssh-action@v1.0.3
-        env:
-          APP_PATH_STAGING: ${{ vars.APP_PATH_STAGING }}
-          GIT_URL: ${{ vars.GIT_URL }}
-          POSTGRES_USER: ${{ secrets.DB_USER_STAGING }}
-          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD_STAGING }}
-          POSTGRES_DB: ${{ vars.DB_DBNAME_STAGING }}
-          REACT_APP_API_URL: ${{ vars.REACT_APP_API_URL_STAGING }} 
-      
-        with:
-            host: ${{ secrets.SSH_HOST_STAGING }}
-            username: ${{ secrets.SSH_USER_NAME_STAGING }}
-            key: ${{ secrets.SSH_PRIVATE_KEY_STAGING }}
-            envs: APP_PATH_STAGING, GIT_URL, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, REACT_APP_API_URL
-            script: |
-
-              if [[ -d "/home/ubuntu/${APP_PATH_STAGING}" ]]; then 
-                cd /home/ubuntu/$APP_PATH_STAGING
-                sudo docker compose down
-                git stash
-                git pull --rebase
-              else
-                ssh-keyscan github.com > ~/.ssh/known_hosts
-                git clone $GIT_URL /home/ubuntu/$APP_PATH_STAGING
-                cd /home/ubuntu/$APP_PATH_STAGING
-              fi
-
-              # If there are any envars update
-              echo "POSTGRES_USER=$POSTGRES_USER" > .env 
-              echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env 
-              echo "POSTGRES_DB=$POSTGRES_DB" >> .env && cp .env backend/.env
-              echo "REACT_APP_API_URL=${{ vars.REACT_APP_API_URL_STAGING }}" > frontend/.env
-
-              # Run app
-              sudo docker compose up my-database my-backend my-frontend --build --detach
-      
-      - name: Hit Endpoint
-        run: |
-          sleep 15
-          curl ${{ vars.STAGING_URL }}
-
-      - name: Clear Docker Image Cache
-        run: |
-          sudo docker image prune
-```
+![cd staging](docs/cd-staging.png)
 
 #### Push to registry
 
-```yaml
-name: Push Container Registry 🛒
-
-on:  
-  push:
-    tags:
-      - '*'
-
-jobs:
-  build-push:
-    name: Push Image To Container Registry 🛒
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Push current & latest pacmail-backend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          file: ./backend/Dockerfile
-          push: true
-          tags: | 
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ vars.APP_NAME }}:${{ github.ref_name }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ vars.APP_NAME }}:latest
-```
+![push image](docs/push-image-registry.png)
 
 #### Production
 
-```yaml
-name: Deploy Production 🚀
-
-on:
-  release:
-    types:
-      - published
-      - edited
-
-jobs:
-  deploy-production:
-    name: Deploy to production server 🚀
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Execute deployment command
-        uses: appleboy/ssh-action@v1.0.3
-        env:
-          APP_PATH_PROD: ${{ vars.APP_PATH_PROD }}
-          GIT_URL: ${{ vars.GIT_URL }}
-          POSTGRES_USER: ${{ secrets.DB_USER_PROD }}
-          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD_PROD }}
-          POSTGRES_DB: ${{ vars.DB_DBNAME_PROD }}
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          APP_NAME: ${{ vars.APP_NAME }}
-          APP_TAG: ${{ github.event.release.tag_name }}
-          REACT_APP_API_URL: ${{ vars.REACT_APP_API_URL_PROD }}
-
-        with:
-          host: ${{ secrets.SSH_HOST_PROD }}
-          username: ${{ secrets.SSH_USER_NAME_PROD }}
-          key: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
-          envs: APP_PATH_PROD, GIT_URL, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, APP_NAME, APP_TAG, REACT_APP_API_URL
-          script: |
-
-            sudo docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
-
-            if [[ -d "/home/ubuntu/${APP_PATH_PROD}" ]]; then 
-              cd /home/ubuntu/$APP_PATH_PROD
-              sudo docker compose down
-              git stash
-              git pull --rebase
-            else
-              ssh-keyscan github.com > ~/.ssh/known_hosts
-              git clone $GIT_URL /home/ubuntu/$APP_PATH_PROD
-              cd /home/ubuntu/$APP_PATH_PROD
-            fi
-
-            # If there are any envars update
-            echo "POSTGRES_USER=$POSTGRES_USER" > .env
-            echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env
-            echo "POSTGRES_DB=$POSTGRES_DB" >> .env && cp .env backend/.env
-            echo "APP_IMAGE=${DOCKERHUB_USERNAME}/${APP_NAME}" >> .env
-            echo "APP_TAG=$APP_TAG" >> .env
-            echo "REACT_APP_API_URL= ${{ vars.REACT_APP_API_URL_PROD }}" > frontend/.env
-
-            # Run app
-            sudo docker compose up my-database my-backend-prod my-frontend-prod --build --detach
-```
+![cd production](docs/cd-production.png)
 
 ## 4. Configuring Web Server using NGINX
 
