@@ -56,3 +56,7 @@ jobs:
 
             # Run app
             sudo docker compose up my-database my-backend-prod my-frontend-prod --build --detach
+      
+      - name: Clear Docker Image Cache
+        run: |
+          sudo docker image prune -f
