@@ -27,12 +27,12 @@ There are five stages that need to be done to deploy an application to the serve
 
 In this project, I am using the Ubuntu Operating System running on an __EC2 Instance__ of Amazon Web Services. The instance specifications used are t3.small (2 vCPU, 2 GiB Memory) with a root volume of 8 Gb. There are several stages in preparing the server to be used:
 
-#### 1.1 Updating the server
+#### Updating the server
 
 ```bash
 sudo apt update && sudo apt upgrade
 ```
-#### 1.2 Install Docker
+#### Install Docker
 
 ```bash
 # Add Docker's official GPG key:
@@ -55,7 +55,7 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 
 Source: [Docker documentation](https://docs.docker.com/engine/install/ubuntu/)
 
-#### 1.3 Install Nginx
+#### Install Nginx
 
 ```bash
 sudo apt install nginx -y
@@ -71,7 +71,7 @@ After installing __NGINX__, configure the firewall by setting which ports will b
 
 Next we need to create a configuration so that our application can run in the container we are using.
 
-### 1. Create Custom Docker Image
+### Create Custom Docker Image
 
 We need to create a __Dockerfile__ so that the application can run inside a Docker Container.
 
@@ -88,7 +88,7 @@ EXPOSE 5000
 
 CMD [ "python", "api.py" ]
 ```
-### 2. Create Docker Compose
+### Create Docker Compose
 
 Next, we need to create __docker compose__ to make it easier for us to configure the services that will be run.
 
@@ -163,15 +163,15 @@ volumes:
 
 After we have prepared the server that will be used to deploy the application, the next step we will create a CI/CD Pipeline using GitHub Actions to automate.
 
-### 1. Preparation
+### 3.1 Preparation
 
-Yang pertama, kita perlu melindungi `main` branch dari repositori kita. Hal tersebut dilakukan agar proses merge dapat dijalankan jika sebuah pull request sudah disetujui dari collaborator. Kemudian kita bisa membuat CI/CD Pipeline di dalam `.github/workflows` direktori. Di dalam direktori tersebut terdapat file .yaml yang akan digunakan menjalankan proses CI/CD.
+First, we need to protect the `main` branch of our repository. This is done so that the merge process can be carried out if a pull request has been approved by the collaborator. Then we can create a CI/CD Pipeline inside the `.github/workflows` directory. In this directory there is a .yaml file that will be used to run the CI/CD process.
 
 ![branch protection](docs/branch-protection.png)
 
 ### Continuous Integration
 
-Proses CI akan dijalankan jika ada pull request ke `main` branch. Pada proses ini juga dilakukan testing guna mengecek apakah aplikasi yang dikembangkan sesuai yang diinginkan.
+The CI process will be run if there is a pull request to the `main` branch. In this process, testing is also carried out to check whether the application being developed is as desired.
 
 ![ci process](docs/ci-process.png)
 
@@ -179,29 +179,29 @@ Proses CI akan dijalankan jika ada pull request ke `main` branch. Pada proses in
 
 #### Staging
 
-Proses ini akan dijalankan jika `main` branch didorong/diperbarui dimana nanti aplikasi akan di deploy ke server staging. Pada proses ini juga berguna jika ada tim QA ingin mencoba menguji aplikasi yang akan dikembangkan sebelum di deploy di production.
+This process will be carried out if the main branch is pushed/updated where later the application will be deployed to the staging server. This process is also useful if a QA team wants to try testing the application to be developed before deploying it in production.
 
 ![cd staging](docs/cd-staging.png)
 
 #### Push to registry
 
-Setelah proses pengujian di server staging selesai dan aplikasi dinyatakan siap di release, langkah selanjutnya yaitu menyimpan docker image yang digunakan ke dalam docker registry. Pada proyek ini saya menggunakan __Docker Hub__ untuk menyimpan docker image yang digunakan. Proses ini akan dijalankan jika ada tag baru yang disimpan pada `main` branch.
+After the testing process on the staging server is complete and the application is declared ready to be released, the next step is to save the docker image used in the docker registry. In this project I use Docker Hub to store the docker images used. This process will be executed if there is a new tag saved on the `main` branch.
 
 ![push image](docs/push-image-registry.png)
 
 #### Production
 
-Proses ini akan dijalankan jika ada tag yang di release sehingga aplikasi akan di deploy ke server production. Aplikasi di dalam server production inilah yang nantinya akan digunakan oleh user.
+This process will be carried out if a tag is released so that the application will be deployed to the production server. This application on the production server will later be used by the user.
 
 ![cd production](docs/cd-production.png)
 
 ## 4. Configuring Web Server using NGINX
 
-Pada proses ini kita perlu melakukan konfigurasi NGINX yang bertindak sebagai Reverse Proxy dimana akan mengarahkan request dari port 80 (HTTP) ke aplikasi yang berjalan di server
+In this process we need to configure __NGINX__ which acts as a Reverse Proxy which will direct requests from port 80 (HTTP) to the application running on the server
 
 ### Removing the default configuration
 
-Pertama kita perlu menghapus konfigurasi default NGINX.
+First we need to remove the default NGINX configuration.
 
 ```bash
 sudo rm /etc/nginx/sites-available/default
@@ -210,14 +210,14 @@ sudo rm /etc/nginx/sites-enabled/default
 
 ### Creating new configuration
 
-Setelah kita menghapus konfigurasi default dari NGINX, kemudian kita akan membuat konfigurasi yang akan kita gunakan.
+After we delete the default configuration from NGINX, then we will create the configuration that we will use.
 
 ```bash
 cd /etc/nginx/sites-available
 sudo nano pacmail.putra988.my.id
 ```
 
-Di dalam file konfigurasi, kita akan menentukan port mana saja yang didengarkan NGINX dan port tujuan ke mana permintaan akan dialihkan.
+In the configuration file, we will specify which ports NGINX listens on and the destination port to which requests will be redirected.
 
 ```nginx
 server {
@@ -239,45 +239,45 @@ server {
 }
 ```
 
-Setelah berhasil membuat file konfigurasi, kemudian kita aktifkan file konfigurasi tersebut dengan membuat symlink ke direktori `sites-enabled`.
+After successfully creating the configuration file, then we activate the configuration file by creating a symlink to the `sites-enabled` directory.
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/pacmail.putra988.my.id /etc/nginx/sites-enabled
 ```
 
-Selanjutnya lakukan pengecekan syntax dan testing untuk memastikan tidak ada konfigurasi yang salah.
+Next, check the syntax and test to ensure there are no incorrect configurations.
 
 ```bash
 sudo nginx -t
 ```
-Jika tidak ada error, sekarang aplikasi dapat diakses secara langsung tanpa perlu menentukan port.
+If there are no errors, now the application can be accessed directly without needing to specify a port.
 
 ## 5. Create Domain Name and Install SSL Certificate
 
-Proses terakhir dari proyek ini yaitu membuat sebuah nama domain untuk memudahkan user dalam mengakses aplikasi tanpa perlu mengingat dan menulis ip publik yang digunakan oleh aplikasi. Pada proses ini juga akan ditunjukkan bagaimana cara install sebuah Sertifikat SSL untuk memastikan koneksi yang digunakan aman via HTTPS. Pada proyek ini, saya menggunakan [jagoanhosting.com](jagoanhosting.com) untuk membuat nama domain dan __Certbot__ untuk generate sertifikat SSL.
+The final process of this project is creating a domain name to make it easier for users to access the application without needing to remember and write the public IP used by the application. This process will also show how to install an SSL certificate to ensure the connection used is secure via HTTPS. In this project, I used [jagoanhosting.com](jagoanhosting.com) to generate the domain name and __Certbot__ to generate the SSL certificate.
 
-### 1. Create DNS Record
+### Create DNS Record
 
 ![dns manager](docs/dns-manager.png)
 
-### 2. Instal SSL Certificate
+### Instal SSL Certificate
 
-Setelah kita membuat nama domain, selanjutnya kita perlu generate sertifikat SSL dan menginstal sertifikat tersebut ke dalam server yang digunakan. Sebelum melakukan generate SSL, kita perlu install __Certbot__ terlebih dahulu.
+After we create a domain name, next we need to generate an SSL certificate and install the certificate on the server used. Before generating SSL, we need to install __Certbot__ first.
 
 ```bash
 sudo apt install certbot python3-certbot-nginx
 ```
 
-Kemudian dengan menggunakan file konfigurasi NGINX yang sudah dibuat, kita akan mengenerate sertifikat SSL dengan menggunakan __Certbot__.
+Then, using the NGINX configuration file that has been created, we will generate an SSL certificate using __Certbot__.
 
 ```bash
 sudo certbot --nginx -d "pacmail.putra988.my.id"
 ```
 
-Setelah kita sudah mengenerate dan instal sertifikat SSL, sekarang koneksi sudah aman dengan menggunakan HTTPS. Anda bisa akses aplikasi tersebut melalui [pacmail.putra988.my.id](pacmail.putra988.my.id)
+After we have generated and installed the SSL certificate, now the connection is secure using HTTPS. You can access the application using [pacmail.putra988.my.id](pacmail.putra988.my.id)
 
 ![login pacmail](docs/login-pacmail.png)
 
-## Kesimpulan
+## Conclusion
 
-Pada proyek ini proses deployment telah berhasil dikerjakan. Secara keseluruhan baik proses setup server sampai proses deployment aplikasi ke sever berhasil dikerjakan dan aplikasi dapat diakses via domain yang digunakan dengan koneksi HTTPS. Untuk rencana selanjutnya dari proyek ini yaitu menambahkan fitur reply email dan  melakukan stress testing.
+In this project the deployment process has been successfully carried out. Overall, both the server setup process and the application deployment process to the server were successfully carried out and the application can be accessed via the domain used with an HTTPS connection. The next plans for this project are adding an email reply feature and carrying out stress testing.
