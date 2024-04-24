@@ -59,4 +59,4 @@ jobs:
       
       - name: Clear Docker Image Cache
         run: |
-          sudo docker image prune -f
+          sudo docker image prune -af
