@@ -1,8 +1,10 @@
 ## <div> PacMail App Deployment </div>
 
-Dokumen ini berisi garis besar proses deployment dari PacMail yang menggunakan Flask, React.js dan Docker. Proyek ini merupakan bagian dari proyek akhir dari kursus Fundamental DevOps dari pacmann.
+This document contains an outline of the deployment process of the PacMail application using Flask, React.js and Docker. This project is part of the final project of pacmann's DevOps Fundamentals course.
 
 ## <div> Tools </div>
+
+In this project there are several tools used, including: 
 
 1. Docker.
 2. GitHub Action.
@@ -11,7 +13,7 @@ Dokumen ini berisi garis besar proses deployment dari PacMail yang menggunakan F
 
 ## <div> Proses Pengerjaan</div>
 
-Ada lima tahap yang perlu dikerjakan untuk deploy aplikasi ke server dan membuatnya dapat diakses.
+There are five stages that need to be done to deploy an application to the server and make it accessible.
 
 1. Server Preparation.
 2. Compose the App.
@@ -23,14 +25,14 @@ Ada lima tahap yang perlu dikerjakan untuk deploy aplikasi ke server dan membuat
 
 ### 1. Server Preparation.
 
-Pada proyek ini, saya menggunakan Sistem Operasi Ubuntu yang dijalankan pada EC2 Instance dari Amazon Web Services. Baik server staging maupun production menggunakan tipe instance t3.small. Ada beberapa tahap dalam mempersiapkan server yang akan digunakan:
+In this project, I am using the Ubuntu Operating System running on an __EC2 Instance__ of Amazon Web Services. The instance specifications used are t3.small (2 vCPU, 2 GiB Memory) with a root volume of 8 Gb. There are several stages in preparing the server to be used:
 
-#### Updating the server
+#### 1.1 Updating the server
 
 ```bash
 sudo apt update && sudo apt upgrade
 ```
-#### Install Docker
+#### 1.2 Install Docker
 
 ```bash
 # Add Docker's official GPG key:
@@ -53,25 +55,25 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 
 Source: [Docker documentation](https://docs.docker.com/engine/install/ubuntu/)
 
-#### Install Nginx
+#### 1.3 Install Nginx
 
 ```bash
-sudo apt install nginx
+sudo apt install nginx -y
 ```
 
 #### Firewall Configuration
 
-Setelah install NGINX, lakukan konfigurasi firewall dengan cara mengatur port mana saja yang akan digunakan. Kita bisa melakukan konfigurasi firewall pada Security Groups yang digunakan oleh server kita.
+After installing __NGINX__, configure the firewall by setting which ports will be used. We can configure the firewall on the __Security Groups__ used by our server.
 
 ![Gambar Firewall](docs/server-firewall.png)
 
 ## 2. Compose the App
 
-Selanjutnya kita perlu membuat konfigurasi agar aplikasi kita dapat dijalankan di kontainer yang kita gunakan.
+Next we need to create a configuration so that our application can run in the container we are using.
 
 ### 1. Create Custom Docker Image
 
-Agar aplikasi dapat berjalan di dalam Docker Container, kita perlu membuat Dockerfile untuk tiap aplikasi yang akan dijalankan di tiap kontainer.
+We need to create a __Dockerfile__ so that the application can run inside a Docker Container.
 
 ```dockerfile
 FROM python:3.10
@@ -88,7 +90,7 @@ CMD [ "python", "api.py" ]
 ```
 ### 2. Create Docker Compose
 
-Selanjutnya kita perlu membuat docker compose agar memudahkan kita dalam melakukan konfigurasi dari service yang akan dijalankan.
+Next, we need to create __docker compose__ to make it easier for us to configure the services that will be run.
 
 ```yaml
 version: "3.8"
@@ -159,7 +161,7 @@ volumes:
 
 ## 3. Create CI/CD Pipeline
 
-Setelah kita sudah mempersiapkan server yang akan digunakan untuk mendeploy aplokasi, langkah selanjutnya kita akan membuat CI/CD Pipeline dengan menggunakan GitHub Actions untuk melakukan otomatisasi.
+After we have prepared the server that will be used to deploy the application, the next step we will create a CI/CD Pipeline using GitHub Actions to automate.
 
 ### 1. Preparation
 
@@ -169,19 +171,27 @@ Yang pertama, kita perlu melindungi `main` branch dari repositori kita. Hal ters
 
 ### Continuous Integration
 
+Proses CI akan dijalankan jika ada pull request ke `main` branch. Pada proses ini juga dilakukan testing guna mengecek apakah aplikasi yang dikembangkan sesuai yang diinginkan.
+
 ![ci process](docs/ci-process.png)
 
 ### Continuous Delivery and Deployment
 
 #### Staging
 
+Proses ini akan dijalankan jika `main` branch didorong/diperbarui dimana nanti aplikasi akan di deploy ke server staging. Pada proses ini juga berguna jika ada tim QA ingin mencoba menguji aplikasi yang akan dikembangkan sebelum di deploy di production.
+
 ![cd staging](docs/cd-staging.png)
 
 #### Push to registry
 
+Setelah proses pengujian di server staging selesai dan aplikasi dinyatakan siap di release, langkah selanjutnya yaitu menyimpan docker image yang digunakan ke dalam docker registry. Pada proyek ini saya menggunakan __Docker Hub__ untuk menyimpan docker image yang digunakan. Proses ini akan dijalankan jika ada tag baru yang disimpan pada `main` branch.
+
 ![push image](docs/push-image-registry.png)
 
 #### Production
+
+Proses ini akan dijalankan jika ada tag yang di release sehingga aplikasi akan di deploy ke server production. Aplikasi di dalam server production inilah yang nantinya akan digunakan oleh user.
 
 ![cd production](docs/cd-production.png)
 
@@ -264,7 +274,7 @@ Kemudian dengan menggunakan file konfigurasi NGINX yang sudah dibuat, kita akan 
 sudo certbot --nginx -d "pacmail.putra988.my.id"
 ```
 
-Setelah kita sudah mengenerate dan instal sertifikat SSL, sekarang koneksi sudah aman dengan menggunakan HTTPS.
+Setelah kita sudah mengenerate dan instal sertifikat SSL, sekarang koneksi sudah aman dengan menggunakan HTTPS. Anda bisa akses aplikasi tersebut melalui [pacmail.putra988.my.id](pacmail.putra988.my.id)
 
 ![login pacmail](docs/login-pacmail.png)
 
